@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column;
+            height: 100vh; background-color: #ffffff;
+            overflow: hidden;
+        }
+        .header { display: flex; justify-content: flex-end; padding: 15px 30px; font-size: 13px; }
+        .header a { color: rgba(0,0,0,0.87); text-decoration: none; margin-left: 15px; }
+        .header a:hover { text-decoration: underline; }
+        
+        .main-container {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; margin-top: -80px;
+        }
+        .logo { font-size: 90px; font-weight: 500; letter-spacing: -2px; margin-bottom: 30px; user-select: none; }
+        .logo span:nth-child(1) { color: #4285F4; } .logo span:nth-child(2) { color: #EA4335; }
+        .logo span:nth-child(3) { color: #FBBC05; } .logo span:nth-child(4) { color: #4285F4; }
+        .logo span:nth-child(5) { color: #34A853; } .logo span:nth-child(6) { color: #EA4335; }
+
+        .search-box {
+            display: flex; align-items: center;
+            width: 100%; max-width: 584px; height: 46px;
+            border: 1px solid #dfe1e5; border-radius: 24px; padding: 0 15px; margin-bottom: 30px;
+        }
+        .search-input { flex: 1; height: 100%; border: none; outline: none; font-size: 16px; }
+        .buttons { display: flex; gap: 12px; }
+        .btn { background-color: #f8f9fa; border: 1px solid #f8f9fa; border-radius: 4px; color: #3c4043; font-size: 14px; padding: 0 16px; height: 36px; cursor: pointer; }
+
+        /* 100% 全屏独立显示层 */
+        #content-overlay {
+            display: none; position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #ffffff; z-index: 9999;
+        }
+        #content-overlay iframe { width: 100%; height: 100%; border: none; }
+        .close-btn {
+            position: absolute; top: 15px; right: 20px;
+            background: rgba(0, 0, 0, 0.6); color: #fff;
+            border: none; padding: 8px 16px; border-radius: 20px;
+            cursor: pointer; font-size: 14px; z-index: 10000;
+        }
+        .close-btn:hover { background: rgba(0, 0, 0, 0.8); }
+    </style>
+</head>
+<body>
+
+    <!-- 伪装的 Google 首页 -->
+    <div class="header">
+        <a href="#">Gmail</a><a href="#">画像</a>
+    </div>
+    <div class="main-container">
+        <div class="logo"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></div>
+        <div class="search-box">
+            <!-- 占位符提示支持 URL 输入 -->
+            <input type="text" id="search-query" class="search-input" autofocus placeholder="キーワードまたは URL を入力してください">
+        </div>
+        <div class="buttons">
+            <button class="btn" onclick="handleSearch()">Google 検索</button>
+        </div>
+    </div>
+
+    <!-- 全屏无缝显示层 -->
+    <div id="content-overlay">
+        <button class="close-btn" onclick="closeOverlay()">✕ 戻る</button>
+        <div id="media-player" style="width:100%; height:100%;"></div>
+    </div>
+
+    <script>
+        document.getElementById('search-query').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') handleSearch();
+        });
+
+        // 判断用户输入的是不是一个合法的 URL 网址
+        function isURL(str) {
+            const pattern = new RegExp('^(https?:\\/\\/)?'+ // 协议
+                '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // 域名
+                '((\\d{1,3}\\.){3}\\d{1,3}))'+ // 或者 IP
+                '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // 端口和路径
+                '(\\?[;&a-z\\d%_.~+=-]*)?'+ // 查询参数
+                '(\\#[-a-z\\d_]*)?$','i'); // 锚点
+            return !!pattern.test(str);
+        }
+
+        function handleSearch() {
+            let query = document.getElementById('search-query').value.trim();
+            const lowerQuery = query.toLowerCase();
+            const overlay = document.getElementById('content-overlay');
+            const playerContainer = document.getElementById('media-player');
+            
+            // 模式 A：触发暗号关键字（100% 官方媒体流优化）
+            if (lowerQuery === 'youtube') {
+                overlay.style.display = 'block';
+                playerContainer.innerHTML = `<iframe src="https://youtube.com" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+            } else if (lowerQuery === 'poki') {
+                overlay.style.display = 'block';
+                playerContainer.innerHTML = `<iframe src="https://gamepix.com" allowfullscreen></iframe>`;
+            } 
+            // 模式 B：用户输入的是一个 URL 网址
+            else if (isURL(query)) {
+                // 如果用户没写 http:// 或 https://，自动帮补齐，否则 iframe 无法识别
+                if (!/^https?:\/\//i.test(query)) {
+                    query = 'https://' + query;
+                }
+                overlay.style.display = 'block';
+                // 使用全屏沙箱直接加载该网址，在学校电脑上网址栏依然保持你 Render 的域名
+                playerContainer.innerHTML = `<iframe src="${query}" allowfullscreen sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
+            } 
+            // 模式 C：普通关键字搜索，跳转到必应（外观继续伪装）
+            else {
+                window.location.href = "https://bing.com" + encodeURIComponent(query);
+            }
+        }
+
+        function closeOverlay() {
+            document.getElementById('content-overlay').style.display = 'none';
+            document.getElementById('media-player').innerHTML = ''; // 清空缓存，停止后台播放
+        }
+    </script>
+</body>
+</html>
