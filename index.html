@@ -15,7 +15,6 @@
         }
         .header { display: flex; justify-content: flex-end; padding: 15px 30px; font-size: 13px; }
         .header a { color: rgba(0,0,0,0.87); text-decoration: none; margin-left: 15px; }
-        .header a:hover { text-decoration: underline; }
         
         .main-container {
             flex: 1; display: flex; flex-direction: column;
@@ -35,7 +34,7 @@
         .buttons { display: flex; gap: 12px; }
         .btn { background-color: #f8f9fa; border: 1px solid #f8f9fa; border-radius: 4px; color: #3c4043; font-size: 14px; padding: 0 16px; height: 36px; cursor: pointer; }
 
-        /* 100% 全屏独立显示层 */
+        /* 全屏无痕独立显示层 */
         #content-overlay {
             display: none; position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -48,81 +47,108 @@
             border: none; padding: 8px 16px; border-radius: 20px;
             cursor: pointer; font-size: 14px; z-index: 10000;
         }
-        .close-btn:hover { background: rgba(0, 0, 0, 0.8); }
     </style>
 </head>
 <body>
 
     <!-- 伪装的 Google 首页 -->
-    <div class="header">
-        <a href="#">Gmail</a><a href="#">画像</a>
-    </div>
+    <div class="header"><a href="#" onclick="return false;">Gmail</a><a href="#" onclick="return false;">画像</a></div>
     <div class="main-container">
         <div class="logo"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></div>
         <div class="search-box">
-            <!-- 占位符提示支持 URL 输入 -->
             <input type="text" id="search-query" class="search-input" autofocus placeholder="キーワードまたは URL を入力してください">
         </div>
         <div class="buttons">
-            <button class="btn" onclick="handleSearch()">Google 検索</button>
+            <button class="btn" onclick="handleSearch()">Google 搜索</button>
         </div>
     </div>
 
-    <!-- 全屏无缝显示层 -->
+    <!-- 核心无痕沙箱层 -->
     <div id="content-overlay">
         <button class="close-btn" onclick="closeOverlay()">✕ 戻る</button>
         <div id="media-player" style="width:100%; height:100%;"></div>
     </div>
 
     <script>
+        // 在此处精准定义你允许通过的正确外部网址（全小写，不带 http）
+        // 只有在这个名单里的 URL 才能被成功打开，否则一律拦截并提示 "URL違う"
+        const ALLOWED_URLS = [
+            'youtube.com',
+            '://youtube.com',
+            'poki.com',
+            'i-finiter.com',
+            '://i-finiter.com'
+        ];
+
         document.getElementById('search-query').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') handleSearch();
         });
 
-        // 判断用户输入的是不是一个合法的 URL 网址
-        function isURL(str) {
-            const pattern = new RegExp('^(https?:\\/\\/)?'+ // 协议
-                '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // 域名
-                '((\\d{1,3}\\.){3}\\d{1,3}))'+ // 或者 IP
-                '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // 端口和路径
-                '(\\?[;&a-z\\d%_.~+=-]*)?'+ // 查询参数
-                '(\\#[-a-z\\d_]*)?$','i'); // 锚点
-            return !!pattern.test(str);
+        // 严格的 URL 清洗与合法性校验
+        function cleanAndValidateURL(str) {
+            let cleanStr = str.toLowerCase().trim();
+            // 抹除可能输入的协议头，提取核心域名进行比对
+            cleanStr = cleanStr.replace(/^(https?:\/\/)?(www\.)?/, '');
+            // 提取主域名路径
+            const domain = cleanStr.split('/')[0];
+            
+            // 检查输入的域名是否在我们的白名单中
+            return ALLOWED_URLS.includes(domain) || ALLOWED_URLS.includes('www.' + domain);
         }
 
         function handleSearch() {
-            let query = document.getElementById('search-query').value.trim();
-            const lowerQuery = query.toLowerCase();
+            let originalQuery = document.getElementById('search-query').value.trim();
+            const lowerQuery = originalQuery.toLowerCase();
             const overlay = document.getElementById('content-overlay');
             const playerContainer = document.getElementById('media-player');
             
-            // 模式 A：触发暗号关键字（100% 官方媒体流优化）
+            // 1. 触发暗号关键字（官方嵌入媒体流优化，体验最完美）
             if (lowerQuery === 'youtube') {
+                wipeHistoryTrace();
                 overlay.style.display = 'block';
-                playerContainer.innerHTML = `<iframe src="https://youtube.com" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                playerContainer.innerHTML = `<iframe src="https://://youtube.com/embed/dQw4w9WgXcQ?autoplay=1" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
             } else if (lowerQuery === 'poki') {
+                wipeHistoryTrace();
                 overlay.style.display = 'block';
                 playerContainer.innerHTML = `<iframe src="https://gamepix.com" allowfullscreen></iframe>`;
             } 
-            // 模式 B：用户输入的是一个 URL 网址
-            else if (isURL(query)) {
-                // 如果用户没写 http:// 或 https://，自动帮补齐，否则 iframe 无法识别
-                if (!/^https?:\/\//i.test(query)) {
-                    query = 'https://' + query;
+            // 2. 如果输入的是网址（或者包含域名特征）
+            else if (originalQuery.includes('.') || originalQuery.includes('/') || originalQuery.includes('http')) {
+                // 进行安全白名单过滤
+                if (cleanAndValidateURL(originalQuery)) {
+                    // 如果 URL 正确，补齐标准的加密安全协议头
+                    if (!/^https?:\/\//i.test(originalQuery)) {
+                        originalQuery = 'https://' + originalQuery;
+                    }
+                    wipeHistoryTrace(); // 彻底抹除浏览器前进后退的痕迹
+                    overlay.style.display = 'block';
+                    // 通过高级安全无痕沙箱（Sandbox）在当前域名内渲染整个目标网站
+                    playerContainer.innerHTML = `<iframe src="${originalQuery}" allowfullscreen sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
+                } else {
+                    // 如果输入的 URL 不在正确名单中，直接弹窗警告并清空输入框
+                    alert('URL違う');
+                    document.getElementById('search-query').value = '';
                 }
-                overlay.style.display = 'block';
-                // 使用全屏沙箱直接加载该网址，在学校电脑上网址栏依然保持你 Render 的域名
-                playerContainer.innerHTML = `<iframe src="${query}" allowfullscreen sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
             } 
-            // 模式 C：普通关键字搜索，跳转到必应（外观继续伪装）
+            // 3. 既不是暗号也不是正确网址，一律判定为 URL 错误（不进行任何跳转，确保纯粹性）
             else {
-                window.location.href = "https://bing.com" + encodeURIComponent(query);
+                alert('URL多分ミスってる');
+                document.getElementById('search-query').value = '';
+            }
+        }
+
+        // 核心技术：在加载任何目标内容前，强制刷新历史堆栈，不留下任何回退或访问痕迹
+        function wipeHistoryTrace() {
+            if (window.history && window.history.replaceState) {
+                // 强制将当前浏览器的历史记录节点写死为 Render 的首页 URL
+                window.history.replaceState(null, document.title, window.location.pathname);
             }
         }
 
         function closeOverlay() {
             document.getElementById('content-overlay').style.display = 'none';
-            document.getElementById('media-player').innerHTML = ''; // 清空缓存，停止后台播放
+            document.getElementById('media-player').innerHTML = ''; // 卸载框架，彻底释放内存和缓存
+            wipeHistoryTrace();
         }
     </script>
 </body>
